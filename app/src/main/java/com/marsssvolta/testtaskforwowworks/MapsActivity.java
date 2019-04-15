@@ -18,11 +18,11 @@ import android.widget.TextView;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.places.GeoDataClient;
-import com.google.android.gms.location.places.PlaceDetectionClient;
-import com.google.android.gms.location.places.PlaceLikelihood;
-import com.google.android.gms.location.places.PlaceLikelihoodBufferResponse;
-import com.google.android.gms.location.places.Places;
+import com.google.android.libraries.places.compat.GeoDataClient;
+import com.google.android.libraries.places.compat.PlaceDetectionClient;
+import com.google.android.libraries.places.compat.PlaceLikelihood;
+import com.google.android.libraries.places.compat.PlaceLikelihoodBufferResponse;
+import com.google.android.libraries.places.compat.Places;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -64,6 +64,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Получить местоположение и положение камеры из сохраненного состояния экземпляра
         if (savedInstanceState != null) {
             mLastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION);
             mCameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION);
@@ -74,12 +76,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mPlaceDetectionClient = Places.getPlaceDetectionClient(this, null);
         mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
+        // Построение карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
     }
 
-    //Сохранение состояния камеры и местоположения
+    // Сохранение состояния камеры и местоположения
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         if (mMap != null) {
@@ -103,12 +106,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         return true;
     }
 
-    //Настройка карты
+    // Настройка карты
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        //Специальный адаптер информационного окна
+        // Специальный адаптер информационного окна
         mMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
 
             @Override
@@ -133,10 +136,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
+        // Запрос разрешений у пользователя
         getLocationPermission();
 
+        // Включение слоя местоположения
         updateLocationUI();
 
+        // Получение текущего местоположения и установка карты
         getDeviceLocation();
     }
 
@@ -156,7 +162,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                             mLastKnownLocation.getLongitude()), DEFAULT_ZOOM));
                         } else {
                             Log.d(TAG, "Current location is null. Using defaults.");
-                            Log.e(TAG, "Exception: %s", task.getException());
+                            Log.e(TAG, "Exception: 1%s", task.getException());
                             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mDefaultLocation,
                                     DEFAULT_ZOOM));
                             mMap.getUiSettings().setMyLocationButtonEnabled(false);
@@ -165,7 +171,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 });
             }
         } catch(SecurityException e)  {
-            Log.e("Exception: %s", e.getMessage());
+            Log.e("Exception: 2%s", e.getMessage());
         }
     }
 
@@ -213,6 +219,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             if (task.isSuccessful() && task.getResult() != null) {
                                 PlaceLikelihoodBufferResponse likelyPlaces = task.getResult();
 
+                                // Возвращение не более 5-ти мест
                                 int count;
                                 if (likelyPlaces.getCount() < M_MAX_ENTRIES) {
                                     count = likelyPlaces.getCount();
@@ -227,6 +234,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 mLikelyPlaceLatLngs = new LatLng[count];
 
                                 for (PlaceLikelihood placeLikelihood : likelyPlaces) {
+                                    // Составление списка вероятных мест, чтобы показать пользователю.
                                     mLikelyPlaceNames[i] = (String) placeLikelihood.getPlace()
                                             .getName();
                                     mLikelyPlaceAddresses[i] = (String) placeLikelihood.getPlace()
@@ -241,57 +249,57 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                     }
                                 }
 
+                                // Освобождение буфера, что бы избежать утечек памяти
                                 likelyPlaces.release();
 
                                 openPlacesDialog();
 
                             } else {
-                                Log.e(TAG, "Exception: %s", task.getException());
+                                Log.e(TAG, "Exception: 3%s", task.getException());
                             }
                         }
                     });
         } else {
-            // The user has not granted permission.
+            // Пользователь не предоставил разрешение.
             Log.i(TAG, "The user did not grant location permission.");
 
-            // Add a default marker, because the user hasn't selected a place.
+            // Добавление маркера по умолчанию
             mMap.addMarker(new MarkerOptions()
                     .title(getString(R.string.default_info_title))
                     .position(mDefaultLocation)
                     .snippet(getString(R.string.default_info_snippet)));
 
-            // Prompt the user for permission.
+            // Запрос разрешения у пользователя
             getLocationPermission();
         }
     }
 
     //Диалог выбора места из списка
     private void openPlacesDialog() {
-        // Ask the user to choose the place where they are now.
+        // Запрос у пользователя выбрать место, в котором он сейчас находится.
         DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                // The "which" argument contains the position of the selected item.
+                // Аргумент "which" содержит позицию выбранного элемента.
                 LatLng markerLatLng = mLikelyPlaceLatLngs[which];
                 String markerSnippet = mLikelyPlaceAddresses[which];
                 if (mLikelyPlaceAttributions[which] != null) {
                     markerSnippet = markerSnippet + "\n" + mLikelyPlaceAttributions[which];
                 }
 
-                // Add a marker for the selected place, with an info window
-                // showing information about that place.
+                // Добавление маркера с информационным окном
                 mMap.addMarker(new MarkerOptions()
                         .title(mLikelyPlaceNames[which])
                         .position(markerLatLng)
                         .snippet(markerSnippet));
 
-                // Position the map's camera at the location of the marker.
+                // Перемещение камеры к маркеру
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng,
                         DEFAULT_ZOOM));
             }
         };
 
-        // Display the dialog.
+        // Отображение диалога
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.pick_place)
                 .setItems(mLikelyPlaceNames, listener)
@@ -314,7 +322,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 getLocationPermission();
             }
         } catch (SecurityException e)  {
-            Log.e("Exception: %s", e.getMessage());
+            Log.e("Exception: 4%s", e.getMessage());
         }
     }
 }
